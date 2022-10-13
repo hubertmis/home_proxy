@@ -5,6 +5,7 @@ version = 3
 [[package]]
 name = "actix-coap"
 version = "0.1.0"
+source = "git+https://github.com/hubertmis/async-coap-dtls.git?branch=test/server-library#a7c0f0eedc416bf1830f41f9aff22cc14efdffb8"
 dependencies = [
  "async-coap",
  "async-coap-tokio",
