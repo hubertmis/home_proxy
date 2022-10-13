@@ -1,0 +1,24 @@
+[package]
+name = "home_proxy"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+#actix-coap = { git = "https://github.com/hubertmis/async-coap-dtls.git", branch = "test/server-library" }
+async-coap = { git = "https://github.com/hubertmis/rust-async-coap.git", branch = "pr/use-trace-instead-of-println" }
+async-coap-tokio = { git = "https://github.com/hubertmis/rust-async-coap.git", branch = "pr/use-trace-instead-of-println" }
+actix-coap = { path = "../async-coap-dtls" }
+#async-coap = { path = "../rust-async-coap/async-coap" }
+#async-coap-tokio = { path = "../rust-async-coap/async-coap-tokio" }
+clap = { version = "4.0", features = ["derive"] }
+env_logger = "0.7.1"
+futures = "0.3"
+log = "0.4"
+openssl = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_cbor = "0.10"
+tokio = { version = "1.21", features = ["full"] }
+tokio-executor = "0.1.7"
+yamahaec = { git = "https://github.com/hubertmis/yamahaec.git" }
