@@ -11,7 +11,7 @@ use async_coap::datagram::{DatagramLocalEndpoint, AllowStdUdpSocket};
 use async_coap::message::MessageWrite;
 use option::CONTENT_FORMAT;
 
-use futures::{prelude::*, executor::LocalPool, task::LocalSpawnExt};
+use futures::prelude::*;
 
 use openssl::error::ErrorStack;
 use openssl::ssl::{SslAcceptor, SslMethod, SslRef};
@@ -232,109 +232,94 @@ async fn main() {
     let (prj_tx, prj_rx) = std::sync::mpsc::channel();
     let prj_tx = Arc::new(Mutex::new(prj_tx));
 
-    let mut pool = LocalPool::new();
-    let spawner = pool.spawner();
+    let handle = tokio::runtime::Handle::current();
+    let mut join_handles = Vec::new();
 
-    let addr;
-    if let Some(arg_addr) = args.addr {
-        addr = format!("{}:5683", arg_addr);
-    } else {
-        addr = "[::]:5683".to_string();
-    }
+    let addr = if let Some(ref arg_addr) = args.addr {
+            format!("{}:5683", arg_addr)
+        } else {
+            "[::]:5683".to_string()
+        };
     let socket = AllowStdUdpSocket::bind(addr).expect("UDP bind failed");
     let endpoint = Arc::new(DatagramLocalEndpoint::new(socket));
 
     let unsecure_prj_tx = prj_tx.clone();
-    spawner.clone().spawn_local(endpoint
+    join_handles.push(handle.spawn(endpoint
         .clone()
         .receive_loop_arc(move |context| receive_handler(context, false, &unsecure_prj_tx))
         .map(|_| unreachable!())
-    ).unwrap();
+    ));
 
     let acceptor = ssl_acceptor().unwrap();
-    let addr = "[::]:5684";
+    let addr = if let Some(ref arg_addr) = args.addr {
+            format!("{}:5684", arg_addr)
+        } else {
+            "[::]:5684".to_string()
+        };
     let socket = DtlsAcceptorSocket::new(UdpSocket::bind(addr).unwrap(), acceptor);
     let endpoint = Arc::new(DatagramLocalEndpoint::new(socket));
 
     let secure_prj_tx = prj_tx.clone();
-    spawner.clone().spawn_local(endpoint
+    join_handles.push(handle.spawn(endpoint
         .clone()
         .receive_loop_arc(move |context| receive_handler(context, true, &secure_prj_tx))
         .map(|_| unreachable!())
-    ).unwrap();
+    ));
 
     let prj_rx_task = move || {
+        async fn enable_yamaha() {
+            let yamaha = yamahaec::basic::Device::new("sypialnia.local");
+            let r = yamaha.set_input(None, "optical", None).await;
+            log::debug!("Enabling yamaha: {:?}", r);
+        }
+        async fn disable_yamaha() {
+            let yamaha = yamahaec::basic::Device::new("sypialnia.local");
+            let r = yamaha.set_power(None, yamahaec::basic::Power::Standby).await;
+            log::debug!("Disabling yamaha: {:?}", r);
+        }
+
         let mut validity_ms;
 
         loop {
             let result = prj_rx.recv();
-            println!("Received {:?}", result);
 
             if let Ok(data) = result {
                 validity_ms = data;
 
                 if validity_ms > 0 {
-                    println!("Enable yamaha");
+                    handle.spawn(enable_yamaha());
                 } else {
-                    println!("Disable yamaha");
                     continue;
                 }
 
                 loop {
                     let duration = core::time::Duration::from_millis(validity_ms);
-                    //let sleep = tokio::time::sleep(duration);
                     let rx = prj_rx.recv_timeout(duration);
 
                     match rx {
                         Ok(data) => { 
-                            println!("Received {:?}", data);
                             validity_ms = data;
 
                             if validity_ms > 0 {
-                                println!("Extending timer");
+                                log::debug!("Extending timer by {} ms", validity_ms);
                             } else {
-                                println!("Disable yamaha");
+                                handle.spawn(disable_yamaha());
                                 break;
                             }
                         }
                         Err(_) => {
-                            println!("timeout");
-                            println!("Disable yamaha");
+                            log::debug!("Disabling yamaha on timeout");
+                            handle.spawn(disable_yamaha());
                             break;
                         }
                     }
-
-                    /*
-                    tokio::select! {
-                        _ = sleep => {
-                            println!("timeout");
-                            println!("Disable yamaha");
-                            break;
-                        }
-
-                        result = rx => {
-                            println!("Received {:?}", result);
-                            if let Some(data) = result {
-                                validity_ms = data;
-
-                                if validity_ms > 0 {
-                                    println!("Extending timer");
-                                } else {
-                                    println!("Disable yamaha");
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    */
                 }
             }
         }
     };
     std::thread::spawn(prj_rx_task);
-    //spawner.clone().spawn_local(prj_rx_task).unwrap();
 
-    prj_tx.lock().unwrap().send(1u64).unwrap();
-
-    pool.run()
+    for jh in join_handles {
+        jh.await;
+    }
 }
