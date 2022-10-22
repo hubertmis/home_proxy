@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::fmt::Write;
-use std::net::UdpSocket;
+use std::net::{SocketAddr, UdpSocket};
 use std::io;
 use std::sync::{Arc, Mutex};
 
@@ -19,6 +19,7 @@ use openssl::ssl::{SslAcceptor, SslMethod, SslRef};
 use serde::Deserialize;
 
 use clap::Parser;
+use socket2::{Socket, Domain, Type};
 
 const COAPS_PSK: &'static str = env!("COAPS_PSK");
 
@@ -30,7 +31,9 @@ struct Args {
     #[arg(short, long)]
     addr: Option<String>,
 
-    // TODO: interface to bind to
+    /// Interface name to bind to
+    #[arg(short, long)]
+    interface: Option<String>,
 }
 
 fn receive_handler<T: RespondableInboundContext>(context: &T, secure: bool, metadata: &Arc<Mutex<std::sync::mpsc::Sender<u64>>>) -> Result<(),Error> {
@@ -221,6 +224,24 @@ fn ssl_acceptor() -> Result<SslAcceptor, io::Error> {
     Ok(acceptor)
 }
 
+fn get_bound_socket(port: u32, addr: &Option<String>, iface: &Option<String>) -> UdpSocket {
+    let addr = if let Some(arg_addr) = addr {
+            format!("{}:{}", arg_addr, port)
+        } else {
+            format!("[::]:{}", port)
+        };
+    let addr: SocketAddr = addr.parse().unwrap();
+
+    let socket = Socket::new(Domain::IPV6, Type::DGRAM, None).unwrap();
+    if let Some(iface) = iface {
+        socket.bind_device(Some(iface.as_bytes())).unwrap();
+    }
+
+    socket.bind(&addr.into()).unwrap();
+
+    socket.into()
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init();
@@ -234,12 +255,8 @@ async fn main() {
     let handle = tokio::runtime::Handle::current();
     let mut join_handles = Vec::new();
 
-    let addr = if let Some(ref arg_addr) = args.addr {
-            format!("{}:5683", arg_addr)
-        } else {
-            "[::]:5683".to_string()
-        };
-    let socket = AllowStdUdpSocket::bind(addr).expect("UDP bind failed");
+    let socket = get_bound_socket(5683, &args.addr, &args.interface);
+    let socket = AllowStdUdpSocket::from_std(socket);
     let endpoint = Arc::new(DatagramLocalEndpoint::new(socket));
 
     let unsecure_prj_tx = prj_tx.clone();
@@ -250,13 +267,8 @@ async fn main() {
     ));
 
     let acceptor = ssl_acceptor().unwrap();
-    let addr = if let Some(ref arg_addr) = args.addr {
-            format!("{}:5684", arg_addr)
-        } else {
-            "[::]:5684".to_string()
-        };
-
-    let socket = async_coap_dtls::dtls::acceptor::DtlsAcceptorSocket::new(UdpSocket::bind(addr).unwrap(), acceptor);
+    let socket = get_bound_socket(5684, &args.addr, &args.interface);
+    let socket = async_coap_dtls::dtls::acceptor::DtlsAcceptorSocket::new(socket.into(), acceptor);
     let endpoint = Arc::new(DatagramLocalEndpoint::new(socket));
 
     let secure_prj_tx = prj_tx.clone();

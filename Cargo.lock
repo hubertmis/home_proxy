@@ -578,6 +578,7 @@ dependencies = [
  "openssl",
  "serde",
  "serde_cbor",
+ "socket2",
  "tokio 1.21.2",
  "tokio-executor",
  "yamahaec",
