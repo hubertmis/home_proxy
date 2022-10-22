@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "actix-coap"
 version = "0.1.0"
-source = "git+https://github.com/hubertmis/async-coap-dtls.git?branch=test/server-library#a7c0f0eedc416bf1830f41f9aff22cc14efdffb8"
+source = "git+https://github.com/hubertmis/async-coap-dtls.git?branch=zathome#ff0c13f44415d798b08800bc0b822d2cff697cb5"
 dependencies = [
  "async-coap",
  "async-coap-tokio",
@@ -14,7 +14,7 @@ dependencies = [
  "futures-timer 0.3.0",
  "log",
  "openssl",
- "tokio 0.2.25",
+ "tokio 1.21.2",
  "tokio-io",
  "tokio-openssl",
 ]
@@ -31,7 +31,7 @@ dependencies = [
 [[package]]
 name = "async-coap"
 version = "0.1.0"
-source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=pr/use-trace-instead-of-println#0f862b56b41962e4dda2760b96a349fc79e2ea01"
+source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=zathome#6c2adc49b98e3098dd62ccf96ce0097814e297b8"
 dependencies = [
  "async-coap-uri",
  "futures 0.3.24",
@@ -46,7 +46,7 @@ dependencies = [
 [[package]]
 name = "async-coap-tokio"
 version = "0.1.0"
-source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=pr/use-trace-instead-of-println#0f862b56b41962e4dda2760b96a349fc79e2ea01"
+source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=zathome#6c2adc49b98e3098dd62ccf96ce0097814e297b8"
 dependencies = [
  "async-coap",
  "futures 0.3.24",
@@ -57,7 +57,7 @@ dependencies = [
 [[package]]
 name = "async-coap-uri"
 version = "0.1.0"
-source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=pr/use-trace-instead-of-println#0f862b56b41962e4dda2760b96a349fc79e2ea01"
+source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=zathome#6c2adc49b98e3098dd62ccf96ce0097814e297b8"
 dependencies = [
  "async-coap-uri-macros",
  "lazy_static",
@@ -68,7 +68,7 @@ dependencies = [
 [[package]]
 name = "async-coap-uri-macros"
 version = "0.1.0"
-source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=pr/use-trace-instead-of-println#0f862b56b41962e4dda2760b96a349fc79e2ea01"
+source = "git+https://github.com/hubertmis/rust-async-coap.git?branch=zathome#6c2adc49b98e3098dd62ccf96ce0097814e297b8"
 dependencies = [
  "lazy_static",
  "proc-macro-hack",

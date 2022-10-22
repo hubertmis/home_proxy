@@ -15,7 +15,6 @@ use futures::prelude::*;
 
 use openssl::error::ErrorStack;
 use openssl::ssl::{SslAcceptor, SslMethod, SslRef};
-use async_coap_dtls::dtls::acceptor::*;
 
 use serde::Deserialize;
 
@@ -80,9 +79,9 @@ fn receive_handler<T: RespondableInboundContext>(context: &T, secure: bool, meta
             let validity_time = validity_time.unwrap_or(2 * 60 * 1000);
 
             if prj_enabled.unwrap_or(false) {
-                prj_tx.lock().unwrap().send(u64::from(validity_time));
+                prj_tx.lock().unwrap().send(u64::from(validity_time)).unwrap();
             } else {
-                prj_tx.lock().unwrap().send(0);
+                prj_tx.lock().unwrap().send(0).unwrap();
             }
 
             if msg.msg_type() == MsgType::Con {
@@ -158,7 +157,7 @@ fn receive_handler<T: RespondableInboundContext>(context: &T, secure: bool, meta
                 let mut data = BTreeMap::new();
                 data.insert("prx", ap_details);
 
-                serde_cbor::to_writer(msg_out, &data);
+                serde_cbor::to_writer(msg_out, &data).unwrap();
                 Ok(())
             }
 
@@ -256,7 +255,8 @@ async fn main() {
         } else {
             "[::]:5684".to_string()
         };
-    let socket = DtlsAcceptorSocket::new(UdpSocket::bind(addr).unwrap(), acceptor);
+
+    let socket = async_coap_dtls::dtls::acceptor::DtlsAcceptorSocket::new(UdpSocket::bind(addr).unwrap(), acceptor);
     let endpoint = Arc::new(DatagramLocalEndpoint::new(socket));
 
     let secure_prj_tx = prj_tx.clone();
@@ -320,6 +320,6 @@ async fn main() {
     std::thread::spawn(prj_rx_task);
 
     for jh in join_handles {
-        jh.await;
+        jh.await.unwrap();
     }
 }
