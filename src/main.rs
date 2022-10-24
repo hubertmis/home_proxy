@@ -224,7 +224,7 @@ fn ssl_acceptor() -> Result<SslAcceptor, io::Error> {
     Ok(acceptor)
 }
 
-fn get_bound_socket(port: u32, addr: &Option<String>, iface: &Option<String>) -> UdpSocket {
+fn get_bound_socket(port: u32, addr: &Option<String>, iface: &Option<String>, multicast: bool) -> UdpSocket {
     let addr = if let Some(arg_addr) = addr {
             format!("{}:{}", arg_addr, port)
         } else {
@@ -235,6 +235,9 @@ fn get_bound_socket(port: u32, addr: &Option<String>, iface: &Option<String>) ->
     let socket = Socket::new(Domain::IPV6, Type::DGRAM, None).unwrap();
     if let Some(iface) = iface {
         socket.bind_device(Some(iface.as_bytes())).unwrap();
+    }
+    if multicast {
+        socket.join_multicast_v6(&"ff05::1".parse().unwrap(), 0).unwrap();
     }
 
     socket.bind(&addr.into()).unwrap();
@@ -255,7 +258,7 @@ async fn main() {
     let handle = tokio::runtime::Handle::current();
     let mut join_handles = Vec::new();
 
-    let socket = get_bound_socket(5683, &args.addr, &args.interface);
+    let socket = get_bound_socket(5683, &args.addr, &args.interface, true);
     let socket = AllowStdUdpSocket::from_std(socket);
     let endpoint = Arc::new(DatagramLocalEndpoint::new(socket));
 
@@ -267,7 +270,7 @@ async fn main() {
     ));
 
     let acceptor = ssl_acceptor().unwrap();
-    let socket = get_bound_socket(5684, &args.addr, &args.interface);
+    let socket = get_bound_socket(5684, &args.addr, &args.interface, false);
     let socket = async_coap_dtls::dtls::acceptor::DtlsAcceptorSocket::new(socket.into(), acceptor);
     let endpoint = Arc::new(DatagramLocalEndpoint::new(socket));
 
